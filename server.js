@@ -19,6 +19,14 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`);
+  });
+  next();
+});
+
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/auth', authRoutes);

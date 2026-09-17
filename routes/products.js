@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const crypto = require('crypto');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
@@ -24,6 +25,7 @@ function toPublicProduct(row, req) {
     category: row.category,
     price: row.price,
     image: row.image.startsWith('http') ? row.image : `${base}${row.image}`,
+    sellerId: row.seller_id,
     sellerName: row.seller_name,
     sellerSurname: row.seller_surname,
     sellerAddress: row.seller_address,
@@ -43,7 +45,18 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ products: rows.map((r) => toPublicProduct(r, req)) });
 });
 
-router.post('/', requireAuth, upload.single('image'), (req, res) => {
+router.post('/', requireAuth, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: "Rasm hajmi 8MB dan oshmasligi kerak" });
+      }
+      return res.status(400).json({ error: "Rasmni yuklab bo'lmadi: " + err.message });
+    }
+    if (err) return next(err);
+    next();
+  });
+}, (req, res) => {
   const { name, category, price } = req.body;
   if (!name || !category || !price || !req.file) {
     return res.status(400).json({ error: "Barcha maydonlarni to'ldiring" });
@@ -55,6 +68,22 @@ router.post('/', requireAuth, upload.single('image'), (req, res) => {
 
   const row = db.prepare(`${PRODUCTS_WITH_SELLER} WHERE products.id = ?`).get(result.lastInsertRowid);
   res.json({ product: toPublicProduct(row, req) });
+});
+
+router.delete('/:id', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+  if (!row) {
+    return res.status(404).json({ error: 'Mahsulot topilmadi' });
+  }
+  if (row.seller_id !== req.user.userId) {
+    return res.status(403).json({ error: "Ruxsat yo'q" });
+  }
+  db.prepare('DELETE FROM products WHERE id = ?').run(id);
+  if (row.image && row.image.startsWith('/uploads/')) {
+    fs.unlink(path.join(__dirname, '..', row.image), () => {});
+  }
+  res.json({ ok: true });
 });
 
 module.exports = router;
