@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+data.sqlite
+data.sqlite-wal
+data.sqlite-shm
+uploads/*
+!uploads/.gitkeep
+README.md
+DEPLOY.md
+deploy

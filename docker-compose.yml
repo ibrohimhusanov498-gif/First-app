@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: .
+    container_name: freshbozor-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DB_PATH=/app/data/data.sqlite
+    ports:
+      - "127.0.0.1:4005:4000"
+    volumes:
+      - freshbozor_data:/app/data
+      - freshbozor_uploads:/app/uploads
+
+volumes:
+  freshbozor_data:
+  freshbozor_uploads:
